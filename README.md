@@ -19,7 +19,7 @@ We use a swine H1 influenza A virus dataset for this tutorial. We include only H
 
 The input to the program is a **descriptor** file, which is a comma-separated csv file that describes where the gene segments' data can be found. Here is an [example descriptor file](examples/descriptor-huH1N1-wgs.csv).
 
-The descriptor file for our dataset looks as follows:
+The descriptor file for our dataset looks as follows (the column headings are not required within the descriptor file):
 
 | segment name | path to the fasta alignment | path to the newick-formatted tree |
 | --- | --- | --- |
