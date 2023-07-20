@@ -15,7 +15,7 @@ To install TreeSort you may download this repository and run `pip install .` fro
 TreeSort requires **Python 3** to run and depends on SciPy, BioPython, DendroPy, and TreeTime (these dependencies will be installed automatically).
 
 ## Tutorial ##
-We use a swine H1 influenza A virus dataset for this tutorial. We include only HA and NA gene segments in this analysis for simplicity, but it can expanded to all 8 segments. The segment trees and alignments for HA and NA can be found in the tutorial [folder](tutorial/swineH1_USDA_HANA.zip).
+We use a swine H1 influenza A virus dataset for this tutorial. We include only HA and NA gene segments in this analysis for simplicity, but it can expanded to all 8 segments. The segment trees and alignments for HA and NA can be found in the tutorial [folder](tutorial/swH1-dataset/).
 
 The input to the program is a **descriptor** file, which is a comma-separated csv file that describes where the gene segments' data can be found. Here is an [example descriptor file](examples/descriptor-huH1N1-wgs.csv).
 

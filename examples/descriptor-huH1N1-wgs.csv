@@ -1,0 +1,8 @@
+PB2, ../huH1N1/USA/PB2.final.aln, ../huH1N1/USA/PB2.fasttree.tre
+PB1, ../huH1N1/USA/PB1.final.aln, ../huH1N1/USA/PB1.fasttree.tre
+PA, ../huH1N1/USA/PA.final.aln, ../huH1N1/USA/PA.fasttree.tre
+*HA, ../huH1N1/USA/HA.final.aln, ../huH1N1/USA/HA.final.aln.rooted.tre
+NP, ../huH1N1/USA/NP.final.aln, ../huH1N1/USA/NP.fasttree.tre
+NA, ../huH1N1/USA/NA.final.aln, ../huH1N1/USA/NA.fasttree.tre
+MP, ../huH1N1/USA/MP.final.aln, ../huH1N1/USA/MP.fasttree.tre
+NS, ../huH1N1/USA/NS.final.aln, ../huH1N1/USA/NS.fasttree.tre
