@@ -1,10 +1,10 @@
 ## TreeSort ##
 TreeSort infers reassortment events along the branches of a fixed segment tree.
-It uses a statistical hypothesis testing framework to identify branches where reassortment with other segments have occurred and reports these events.
+It uses a statistical hypothesis testing framework to identify branches where reassortment with other segments has occurred and reports these events.
 
 TreeSort can process datasets with tens of thousands of virus strains in just a few minutes and can scale to very large datasets with hundreds of thousands of strains.
 
-Below is an example of (a small part of) TreeSort output after it was run on an H1 swine influenza A virus dataset. The base phylogeny is a Hemagglutinin (HA) segment tree and annotations indicate reassortment relative to the HA's evolutionary history. The annotations list the acquired gene segments and how distant were these segments (# of nucleotide substitutions) from the original segments. For example, `PB2(147)` indicates that a new PB2 was acquired that was (at least) 147 nucleotides different from the pre-reassortment PB2.
+Below is an example of (a small part of) TreeSort output after it was run on an H1 influenza A virus in swine dataset. The base phylogeny is a hemagglutinin (HA) segment tree and the annotations indicate reassortment relative to the HA's evolutionary history. The annotations list the acquired gene segments and how distant were these segments (# of nucleotide substitutions) from the original segments. For example, `PB2(147)` indicates that a new PB2 was acquired that was (at least) 147 nucleotides different from the pre-reassortment PB2.
 <center>
 <img src="tutorial/figures/swH1-reassortment-ex1.png">
 </center>
@@ -37,7 +37,7 @@ treesort -i descriptor-swH1-HANA.csv -o swH1-HA.annotated.tre
 TreeSort will first estimate molecular clock rates for each segment and then will infer reassortment and annotate the backbone tree. The output tree in nexus format (`swH1-HA.annotated.tre`) can be visualized in FigTree or [icytree.org](https://icytree.org/). You can view the inferred reassortment events by displaying the **'rea'** annotations on tree edges, as shown in the Figure above.
 
 ### Uncertain reassortment placement (the '?' tag) ###
-Sometimes TreeSort does not have enough information to confidently place a reassortment event on a specific branch of the tree. TreeSort always narrows down the reassortment event to a particular ancestral node on a tree, but may not distinguish, which of the child branches was affected by reassortment. In those cases, TreeSort will annotate both child branches with a `?<segment-name>` tag. For example, `?PB2(26)` below indicates that the reassortment with PB2 might have happened on either of the child branches.
+Sometimes TreeSort does not have enough information to confidently place a reassortment event on a specific branch of the tree. TreeSort always narrows down the reassortment event to a particular ancestral node on a tree, but may not distinguish which of the child branches was affected by reassortment. In those cases, TreeSort will annotate both child branches with a `?<segment-name>` tag. For example, `?PB2(26)` below indicates that the reassortment with PB2 might have happened on either of the child branches.
 
 <center>
 <img src="tutorial/figures/swH1-reassortment-ex3.png">
