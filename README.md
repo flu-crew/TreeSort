@@ -21,7 +21,7 @@ We use a swine H1 influenza A virus dataset for this tutorial. We include only H
 
 The input to the program is a **descriptor** file, which is a comma-separated csv file that describes where the gene segments' data can be found. Here is an [example descriptor file](examples/descriptor-huH1N1-wgs.csv).
 
-The descriptor file for our dataset looks as follows:
+The descriptor file for our dataset looks as follows (the column headings are not required within the descriptor file):
 
 | segment name | path to the fasta alignment | path to the newick-formatted tree |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ The descriptor file for our dataset looks as follows:
 Here the star symbol (\*) indicates the segment that will used as the backbone phylogeny - reassortment events will be inferred relative to this phylogeny (HA in this case). Note that the backbone phylogeny should be **rooted**, whereas trees for other segments can be unrooted (see [TreeTime](https://github.com/neherlab/treetime) for good rooting options for RNA viruses).
 The csv descriptor file for the above table should not contain the header, and it can be found [here](tutorial/descriptor-swH1-HANA.csv).
 
-Having the descriptor file, TreeSort can be run as follows (from the tutorial folder)
+Having the descriptor file, TreeSort can be run as follows (from within the tutorial folder)
 ```
 treesort -i descriptor-swH1-HANA.csv -o swH1-HA.annotated.tre
 ```
