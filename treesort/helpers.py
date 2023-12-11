@@ -25,8 +25,13 @@ def parse_dates(aln_path: str):
                     date = datetime.strptime(token, '%Y-%m')
                 else:
                     date = datetime.strptime(token, '%Y')
-        dec_date = date.year + ((date.month - 1) * 30 + date.day) / 365.0
-        dates[name] = dec_date
+        if not date:
+            # print(f'No date for {record.id}')
+            # TODO: log with low priority level
+            pass
+        else:
+            dec_date = date.year + ((date.month - 1) * 30 + date.day) / 365.0
+            dates[name] = dec_date
     return dates
 
 
