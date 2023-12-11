@@ -4,7 +4,7 @@ import math
 
 
 def is_jc_outlier(subs: int, sites: int, ml_distance: float, rate_ratio=1, pvalue_threshold=0.01,
-                  allowed_deviation=1.7):
+                  allowed_deviation=1.5):
     """
     We assume the Jukes-Cantor substitution model and test whether the observed number of substitutions was likely
     to come from the observed time interval (ml_distance). The method assumes strict molecular clock.
@@ -16,16 +16,20 @@ def is_jc_outlier(subs: int, sites: int, ml_distance: float, rate_ratio=1, pvalu
     :param allowed_deviation: Should be >1: allowed deviation from the strict molecular clock in the second segment.
     :return: True if reassortment is likely
     """
-    sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * allowed_deviation)/3))
+    assert 1 <= allowed_deviation < 2
+    # When the first segment is at the lowest and second segment at the highest deviation:
+    max_deviation = allowed_deviation / (2 - allowed_deviation)
+    sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * max_deviation) / 3))
     pvalue = binomtest(subs, sites, p=sub_probability, alternative='greater').pvalue
     # print(subs, sites, ml_distance, sub_probability, pvalue)
     return pvalue < pvalue_threshold
 
 
-def jc_pvalue(subs: int, sites: int, ml_distance: float, rate_ratio=1, allowed_deviation=1.7):
+def jc_pvalue(subs: int, sites: int, ml_distance: float, rate_ratio=1, allowed_deviation=1.5):
     if ml_distance < 1 / sites:
         ml_distance = 1 / sites
-    sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * allowed_deviation) / 3))
+    max_deviation = allowed_deviation / (2 - allowed_deviation)
+    sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * max_deviation) / 3))
     pvalue = binomtest(subs, sites, p=sub_probability, alternative='greater').pvalue
     # if pvalue < 0.001:
     #     print(subs, sites, ml_distance, sub_probability, pvalue)

@@ -10,7 +10,7 @@ from treesort.jc_outlier_detector import is_jc_outlier, jc_pvalue
 from treesort.parsimony import compute_parsimony_sibling_dist
 from treesort.tree_indexer import TreeIndexer
 
-PVALUE_THRESHOLD = 0.001
+PVALUE_THRESHOLD = 0.0001
 ADD_UNCERTAIN = True
 
 # TODO: taxa should be identified by strain name only (then substituted before writing the output tree).
@@ -18,7 +18,7 @@ ADD_UNCERTAIN = True
 
 
 def run_treesort_cli():
-    # Each segment has format (name, aln_path, tree_path)
+    # Each segment has format (name, aln_path, tree_path, rate)
     sys.setrecursionlimit(100000)
     segments, ref_segment_i, output_path, clades_out_path = options.parse_args()
     ref_tree_path = segments[ref_segment_i][2]
@@ -101,7 +101,7 @@ def run_treesort_cli():
         if annotation:
             if len(node.leaf_nodes()) >= 20:
                 leaf = node.leaf_nodes()[0]
-                # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)
+                # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)  # TODO: comment out
             else:
                 # print(annotation, len(node.leaf_nodes()), ';'.join([leaf.taxon.label for leaf in node.leaf_nodes()]))
                 pass
@@ -131,4 +131,5 @@ def run_treesort_cli():
         clades_out.close()
 
     tree.write_to_path(output_path, schema='nexus')
+    # tree.write_to_path(output_path + 'phylo.xml', schema='phyloxml')
     print(f'Saved the annotated tree file to {output_path}')
