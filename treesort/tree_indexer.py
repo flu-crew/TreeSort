@@ -39,3 +39,8 @@ class TreeIndexer:
         for node in tree.leaf_node_iter():
             node.index = node_id
             node_id += 1
+        tree.annotations.add_new('indexed', str(True))
+
+    @staticmethod
+    def is_indexed(tree: Tree) -> bool:
+        return tree.annotations.get_value('indexed', str(False)) == str(True)

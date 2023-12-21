@@ -13,12 +13,12 @@ def is_jc_outlier(subs: int, sites: int, ml_distance: float, rate_ratio=1, pvalu
     :param ml_distance: Expected number of substitutions per site in the first gene segment
     :param rate_ratio: Ratio in global substitution rates between the second and first segments
     :param pvalue_threshold: p-values below this threshold will be inferred as reassortments
-    :param allowed_deviation: Should be >1: allowed deviation from the strict molecular clock in the second segment.
+    :param allowed_deviation: Should be >=1: allowed deviation from the strict molecular clock in each segment
     :return: True if reassortment is likely
     """
-    assert 1 <= allowed_deviation < 2
+    assert 1 <= allowed_deviation <= 10
     # When the first segment is at the lowest and second segment at the highest deviation:
-    max_deviation = allowed_deviation / (2 - allowed_deviation)
+    max_deviation = allowed_deviation * allowed_deviation
     sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * max_deviation) / 3))
     pvalue = binomtest(subs, sites, p=sub_probability, alternative='greater').pvalue
     # print(subs, sites, ml_distance, sub_probability, pvalue)
@@ -28,7 +28,7 @@ def is_jc_outlier(subs: int, sites: int, ml_distance: float, rate_ratio=1, pvalu
 def jc_pvalue(subs: int, sites: int, ml_distance: float, rate_ratio=1, allowed_deviation=1.5):
     if ml_distance < 1 / sites:
         ml_distance = 1 / sites
-    max_deviation = allowed_deviation / (2 - allowed_deviation)
+    max_deviation = allowed_deviation * allowed_deviation
     sub_probability = 0.75 - 0.75 * (math.exp(-(4 * ml_distance * rate_ratio * max_deviation) / 3))
     pvalue = binomtest(subs, sites, p=sub_probability, alternative='greater').pvalue
     # if pvalue < 0.001:
