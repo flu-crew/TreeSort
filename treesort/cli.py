@@ -9,9 +9,10 @@ from treesort.helpers import binarize_tree
 from treesort.jc_outlier_detector import is_jc_outlier, jc_pvalue
 from treesort.parsimony import compute_parsimony_sibling_dist
 from treesort.tree_indexer import TreeIndexer
+from treesort.reassortment_utils import compute_rea_rate
 
-PVALUE_THRESHOLD = 0.0001
 ADD_UNCERTAIN = True
+
 
 # TODO: taxa should be identified by strain name only (then substituted before writing the output tree).
 #  a regex can be used to specify a capture pattern
@@ -20,7 +21,7 @@ ADD_UNCERTAIN = True
 def run_treesort_cli():
     # Each segment has format (name, aln_path, tree_path, rate)
     sys.setrecursionlimit(100000)
-    segments, ref_segment_i, output_path, clades_out_path = options.parse_args()
+    segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation = options.parse_args()
     ref_tree_path = segments[ref_segment_i][2]
     tree: Tree = Tree.get(path=ref_tree_path, schema='newick', preserve_underscores=True)
     binarize_tree(tree)  # Randomly binarize.
@@ -49,8 +50,9 @@ def run_treesort_cli():
         # print('Segment rate ratio: %.5f' % rate_ratio)
 
         pvalues = [(node.index, jc_pvalue(child_dists_s2[node.index], seg2_len, helpers.sibling_distance(node),
-                                          rate_ratio=rate_ratio)) for node in tree.internal_nodes()]
-        jc_outliers = [(index, pvalue) for index, pvalue in pvalues if pvalue < PVALUE_THRESHOLD]
+                                          rate_ratio=rate_ratio, allowed_deviation=allowed_deviation))
+                   for node in tree.internal_nodes()]
+        jc_outliers = [(index, pvalue) for index, pvalue in pvalues if pvalue < pval_threshold]
         jc_outlier_indices = [x[0] for x in jc_outliers]
         # print(len(jc_outliers))
         total_rea, certain_rea = 0, 0
@@ -61,11 +63,11 @@ def run_treesort_cli():
             annotation = f'{seg[0]}({child_dists_s2[outlier_ind]})'
             if outlier_node != tree.seed_node:
                 c1_pvalue = jc_pvalue(child1_dists_s2[outlier_ind], seg2_len, helpers.aunt_distance(c1),
-                                      rate_ratio=rate_ratio)
+                                      rate_ratio=rate_ratio, allowed_deviation=allowed_deviation)
                 c2_pvalue = jc_pvalue(child2_dists_s2[outlier_ind], seg2_len, helpers.aunt_distance(c2),
-                                      rate_ratio=rate_ratio)
-                c1_outlier = c1_pvalue < PVALUE_THRESHOLD
-                c2_outlier = c2_pvalue < PVALUE_THRESHOLD
+                                      rate_ratio=rate_ratio, allowed_deviation=allowed_deviation)
+                c1_outlier = c1_pvalue < pval_threshold
+                c2_outlier = c2_pvalue < pval_threshold
                 if (not c1_outlier) and (not c2_outlier):
                     # print('Neither', child_dists_s2[outlier_ind], helpers.sibling_distance(outlier_node))
                     continue
@@ -121,14 +123,18 @@ def run_treesort_cli():
                     if rea_gene.startswith('?'):
                         reported_rea.add((clade, rea_gene))  # mark the ?-genes that we report here
                 report_genes_str = ';'.join(report_genes)
-                clades_out.write(f'{clade},{report_genes_str}'
-                                 # if there are ?-genes - add alternative clade (sister clade)
-                                 f'{"," + sister_clade if report_genes_str.count("?") > 0 else ","}\n')
+                if report_genes_str:
+                    clades_out.write(f'{clade},{report_genes_str}'
+                                     # if there are ?-genes - add alternative clade (sister clade)
+                                     f'{"," + sister_clade if report_genes_str.count("?") > 0 else ","}\n')
         else:
             node.edge.annotations.add_new('is_reassorted', '0')
 
     if clades_out:
         clades_out.close()
+
+    rea_rate = compute_rea_rate(tree, ref_seg[3])
+    print(f'Estimated reassortment rate per lineage per year: {round(rea_rate, 6)}')
 
     tree.write_to_path(output_path, schema='nexus')
     # tree.write_to_path(output_path + 'phylo.xml', schema='phyloxml')

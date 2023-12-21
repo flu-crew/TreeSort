@@ -13,6 +13,11 @@ from dendropy import Tree
 
 from treesort.helpers import parse_dates
 
+
+DEFAULT_PVALUE_THRESHOLD = 0.001
+DEFAULT_DEVIATION = 2
+
+
 # Program interface:
 parser = argparse.ArgumentParser(description='TreeSort: fast and effective reassortment detection in '
                                              'segmented RNA viruses (primarily influenza)',
@@ -28,6 +33,15 @@ parser.add_argument('--clades', type=str, action='store', dest='clades_path',
                     required=False)
 parser.add_argument('--equal-rates', action='store_true', dest='equal_rates',
                     help='Do not estimate molecular clock rates for different segments: assume equal rates', required=False)
+parser.add_argument('--dev', type=float, action='store', dest='deviation',
+                    help='Maximum deviation from the estimated substitution rate within each segment. '
+                         'The default is 2 - the substitution rate on a particular tree branch is allowed to be '
+                         'twice as high or twice as low as the estimated rate. '
+                         'The default value was estimated from the empirical influenza A data', required=False)
+parser.add_argument('--pvalue', type=float, action='store', dest='pvalue',
+                    help='The cutoff p-value for the reassortment tests: the default is 0.001 (0.1 percent). '
+                         'You may want to decrease or increase this parameter depending on how stringent you want '
+                         'the analysis to be', required=False)
 
 
 def make_outdir(descriptor_path: str) -> str:
@@ -66,8 +80,9 @@ def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False,
         parser.error(f"TreeTime exception on the input files {tree_path} and {aln_path}: {e}\n "
                      f"Please make sure that the specified alignments and trees are correct.")
     timetree.clock_filter(n_iqd=3, reroot='least-squares')
+    timetree.use_covariation = True
     timetree.reroot()
-    timetree.get_clock_model(covariation=False)
+    timetree.get_clock_model(covariation=True)
     r_val = timetree.clock_model['r_val']
     if plot:
         timetree.plot_root_to_tip()
@@ -114,5 +129,22 @@ def parse_descriptor(path: str, estimate_rates=True):
 
 def parse_args():
     args = parser.parse_args()
+
+    # Validate PVALUE
+    pval = DEFAULT_PVALUE_THRESHOLD
+    if args.pvalue is not None:
+        pval = args.pvalue
+        if pval >= 0.5 or pval <= 1e-9:
+            parser.error('the PVALUE cutoff has to be positive and cannot exceed 0.5 (50%).')
+    print(f'P-value threshold for significance was set to {pval}')
+
+    # Validate PVALUE
+    deviation = DEFAULT_DEVIATION
+    if args.deviation:
+        deviation = args.deviation
+        if deviation > 10 or deviation < 1:
+            parser.error('DEVIATON has to be in the [1, 10] interval.')
+
     segments, ref_segment = parse_descriptor(args.descriptor, not args.equal_rates)
-    return segments, ref_segment, args.output, args.clades_path
+
+    return segments, ref_segment, args.output, args.clades_path, pval, deviation
