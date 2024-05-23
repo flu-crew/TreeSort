@@ -138,12 +138,12 @@ def parse_args():
             parser.error('the PVALUE cutoff has to be positive and cannot exceed 0.5 (50%).')
     print(f'P-value threshold for significance was set to {pval}')
 
-    # Validate PVALUE
+    # Validate DEVIATION
     deviation = DEFAULT_DEVIATION
     if args.deviation:
         deviation = args.deviation
         if deviation > 10 or deviation < 1:
-            parser.error('DEVIATON has to be in the [1, 10] interval.')
+            parser.error('DEVIATION has to be in the [1, 10] interval.')
 
     segments, ref_segment = parse_descriptor(args.descriptor, not args.equal_rates)
 

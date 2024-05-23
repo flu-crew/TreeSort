@@ -4,6 +4,28 @@ import re
 
 from Bio import SeqIO
 from dendropy import Tree, Node
+from typing import Union, List
+
+
+def get_median(l: List[float]) -> float:
+    l = sorted(l)
+    l_size = len(l)
+    if l_size % 2 == 1:
+        return l[l_size // 2]
+    else:
+        return (l[l_size // 2 - 1] + l[l_size // 2]) / 2
+
+
+def compute_sampling_density(tree: Union[str, Tree]) -> float:
+    """
+    Reports the median edge length.
+    """
+    if isinstance(tree, str):
+        tree: Tree = Tree.get(path=tree, schema='newick', preserve_underscores=True)
+    elif not isinstance(tree, Tree):
+        raise ValueError('"tree" should be either a path to a newick tree or a dendropy Tree object.')
+    edge_lengths = [node.edge_length for node in tree.postorder_node_iter()]
+    return get_median(edge_lengths)
 
 
 def parse_dates(aln_path: str):

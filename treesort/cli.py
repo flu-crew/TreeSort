@@ -9,7 +9,7 @@ from treesort.helpers import binarize_tree
 from treesort.jc_outlier_detector import is_jc_outlier, jc_pvalue
 from treesort.parsimony import compute_parsimony_sibling_dist
 from treesort.tree_indexer import TreeIndexer
-from treesort.reassortment_utils import compute_rea_rate
+from treesort.reassortment_utils import compute_rea_rate_simple
 
 ADD_UNCERTAIN = True
 
@@ -133,7 +133,7 @@ def run_treesort_cli():
     if clades_out:
         clades_out.close()
 
-    rea_rate = compute_rea_rate(tree, ref_seg[3])
+    rea_rate = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
     print(f'Estimated reassortment rate per lineage per year: {round(rea_rate, 6)}')
 
     tree.write_to_path(output_path, schema='nexus')
