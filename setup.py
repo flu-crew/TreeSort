@@ -10,7 +10,8 @@ setup(
         'scipy>=1.7.0',
         'biopython>=1.67',
         'dendropy>=4.5.0',
-        'phylo-treetime>=0.9.4'
+        'phylo-treetime>=0.9.4',
+        'matplotlib'
     ],
     name="TreeSort",
     version=__version__,
