@@ -5,6 +5,7 @@ import random
 import os
 
 import matplotlib
+
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
@@ -13,10 +14,9 @@ from dendropy import Tree
 
 from treesort.helpers import parse_dates
 
-
 DEFAULT_PVALUE_THRESHOLD = 0.001
 DEFAULT_DEVIATION = 2
-
+DEFAULT_METHOD = 'LOCAL'
 
 # Program interface:
 parser = argparse.ArgumentParser(description='TreeSort: fast and effective reassortment detection in '
@@ -28,11 +28,9 @@ parser.add_argument('-i', type=str, action='store', dest='descriptor',
                          'phylogenetic trees for different virus segments (see examples/)', required=True)
 parser.add_argument('-o', type=str, action='store', dest='output',
                     help='Path to the output file (tree will be save in nexus format)', required=True)
-parser.add_argument('--clades', type=str, action='store', dest='clades_path',
-                    help='Path to an output file, where clades with evidence of reassrotment will be saved',
-                    required=False)
-parser.add_argument('--equal-rates', action='store_true', dest='equal_rates',
-                    help='Do not estimate molecular clock rates for different segments: assume equal rates', required=False)
+parser.add_argument('-m', type=str, action='store', dest='method',
+                    help='Methods are "local" (default) or "mincut". The mincut method always determines the most '
+                         'parsimonious reassortment placement even in ambiguous circumstances.', required=False)
 parser.add_argument('--dev', type=float, action='store', dest='deviation',
                     help='Maximum deviation from the estimated substitution rate within each segment. '
                          'The default is 2 - the substitution rate on a particular tree branch is allowed to be '
@@ -42,6 +40,16 @@ parser.add_argument('--pvalue', type=float, action='store', dest='pvalue',
                     help='The cutoff p-value for the reassortment tests: the default is 0.001 (0.1 percent). '
                          'You may want to decrease or increase this parameter depending on how stringent you want '
                          'the analysis to be', required=False)
+parser.add_argument('--no-collapse', action='store_true', dest='no_collapse',
+                    help='Do not collapse near-zero length branches into multifurcations '
+                         '(by default, TreeSort collapses all branches shorter than 1e-7 and then optimizes '
+                         'the multifurcations).')
+parser.add_argument('--equal-rates', action='store_true', dest='equal_rates',
+                    help='Do not estimate molecular clock rates for different segments: assume equal rates',
+                    required=False)
+parser.add_argument('--clades', type=str, action='store', dest='clades_path',
+                    help='Path to an output file, where clades with evidence of reassrotment will be saved',
+                    required=False)
 
 
 def make_outdir(descriptor_path: str) -> str:
@@ -112,9 +120,9 @@ def parse_descriptor(path: str, estimate_rates=True):
                     # seg_rate = estimate_clock_rate(seg_name, tree_path, aln_path)
                     segments.append((seg_name, aln_path, tree_path, 1))
     if len(segments) <= 1:
-        parser.error('The descriptor should specify at least two segments')
+        parser.error('The descriptor should specify at least two segments.')
     if ref_segment < 0:
-        parser.error('The descriptor should specify one of the segments as a reference segment, e.g., like "*HA"')
+        parser.error('The descriptor should specify one of the segments as a reference segment, e.g., like "*HA".')
 
     print(f'Read {len(segments)} segments: {", ".join([seg[0] for seg in segments])}')
     if estimate_rates:
@@ -145,6 +153,16 @@ def parse_args():
         if deviation > 10 or deviation < 1:
             parser.error('DEVIATION has to be in the [1, 10] interval.')
 
+    # Validate METHOD
+    method = DEFAULT_METHOD
+    if args.method:
+        if args.method in ('local', 'mincut'):
+            method = args.method.upper()
+        else:
+            parser.error(f'Unknown method "{args.method}". Known methods are "local" or "mincut".')
+
+    collapse_branches = False if args.no_collapse else True
     segments, ref_segment = parse_descriptor(args.descriptor, not args.equal_rates)
 
-    return segments, ref_segment, args.output, args.clades_path, pval, deviation
+    return args.descriptor, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
+           collapse_branches

@@ -28,6 +28,10 @@ def compute_sampling_density(tree: Union[str, Tree]) -> float:
     return get_median(edge_lengths)
 
 
+def collapse_zero_branches(tree: Tree, threshold=1e-7):
+    tree.collapse_unweighted_edges(threshold)
+
+
 def parse_dates(aln_path: str):
     records = SeqIO.parse(aln_path, 'fasta')
     dates = {}
@@ -57,8 +61,15 @@ def parse_dates(aln_path: str):
     return dates
 
 
+# For a binary tree only
 def sibling_distance(parent_node: Node) -> float:
     return parent_node.child_nodes()[0].edge_length + parent_node.child_nodes()[1].edge_length
+
+
+# Siblings specified.
+def sibling_distance_n2(sib1: Node, sib2: Node) -> float:
+    assert sib1.parent_node is sib2.parent_node
+    return sib1.edge_length + sib2.edge_length
 
 
 def aunt_distance(node: Node) -> float:
@@ -85,13 +96,27 @@ def node_distance(node1: Node, node2: Node) -> float:
     elif node2_depth > node1_depth:
         for step in range(node2_depth - node1_depth):
             distance += p2.edge_length
-            p2 = p1.parent_node
+            p2 = p2.parent_node
 
     while p1 != p2:
         distance += p1.edge_length
         distance += p2.edge_length
         p1 = p1.parent_node
         p2 = p2.parent_node
+    return distance
+
+
+def node_distance_w_lca(node1: Node, node2: Node, lca: Node) -> float:
+    distance = 0
+    while node1 is not None and node1 is not lca:
+        distance += node1.edge_length
+        node1 = node1.parent_node
+
+    while node2 is not None and node2 is not lca:
+        distance += node2.edge_length
+        node2 = node2.parent_node
+
+    assert node1 and node2
     return distance
 
 

@@ -14,7 +14,7 @@ def compute_rea_rate_fast(annotated_tree: Tree, evol_rate: float, ignore_top_edg
     """
     edge_cutoff = math.inf
     if ignore_top_edges > 0:
-        edge_lengths = sorted([node.edge_length for node in annotated_tree.postorder_node_iter() if node.edge])
+        edge_lengths = sorted([node.edge_length for node in annotated_tree.postorder_node_iter() if node.edge_length])
         top_percentile = int(round(len(edge_lengths) * (1.0 - ignore_top_edges / 100)))
         edge_cutoff = edge_lengths[top_percentile]
 
@@ -58,7 +58,7 @@ def compute_rea_rate_simple(annotated_tree: Tree, evol_rate: float, ignore_top_e
     """
     edge_cutoff = math.inf
     if ignore_top_edges > 0:
-        edge_lengths = sorted([node.edge_length for node in annotated_tree.postorder_node_iter() if node.edge])
+        edge_lengths = sorted([node.edge_length for node in annotated_tree.postorder_node_iter() if node.edge_length])
         top_percentile = int(round(len(edge_lengths) * (1.0 - ignore_top_edges / 100)))
         edge_cutoff = edge_lengths[top_percentile]
 
@@ -82,7 +82,7 @@ def compute_rea_rate_simple(annotated_tree: Tree, evol_rate: float, ignore_top_e
     tree_length = 0
     for node in annotated_tree.postorder_node_iter():
         if node is not annotated_tree.seed_node:
-            if node.edge and node.edge_length >= edge_cutoff:
+            if node.edge_length and node.edge_length >= edge_cutoff:
                 continue  # Skip the edge if its in the top percentile.
             tree_length += node.edge_length
 

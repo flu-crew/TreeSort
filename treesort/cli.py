@@ -2,16 +2,20 @@
 import sys
 
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 from dendropy import Tree, Node, Edge
 
 from treesort import options, helpers
-from treesort.helpers import binarize_tree
-from treesort.jc_outlier_detector import is_jc_outlier, jc_pvalue
-from treesort.parsimony import compute_parsimony_sibling_dist
+from treesort.helpers import binarize_tree, collapse_zero_branches
 from treesort.tree_indexer import TreeIndexer
 from treesort.reassortment_utils import compute_rea_rate_simple
+from treesort.reassortment_inference import REA_FIELD, ReassortmentDetector
+from treesort.jc_reassortment_test import JCReassortmentTester
 
-ADD_UNCERTAIN = True
+ADD_UNCERTAIN = True  # For local method only.
+# METHOD = 'LOCAL'  # MINCUT or LOCAL.
+RESOLVE_GREEDY = True  # Whether to use the greedy multifurcation reslution algorithm
+# COLLAPSE_ZERO_BRANCHES = True
 
 
 # TODO: taxa should be identified by strain name only (then substituted before writing the output tree).
@@ -21,77 +25,75 @@ ADD_UNCERTAIN = True
 def run_treesort_cli():
     # Each segment has format (name, aln_path, tree_path, rate)
     sys.setrecursionlimit(100000)
-    segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation = options.parse_args()
+    descriptor_name, segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation, \
+        method, collapse_branches = options.parse_args()
     ref_tree_path = segments[ref_segment_i][2]
     tree: Tree = Tree.get(path=ref_tree_path, schema='newick', preserve_underscores=True)
-    binarize_tree(tree)  # Randomly binarize.
+    ref_seg = segments[ref_segment_i]
+    if collapse_branches:
+        print('collapsing brunches')
+        collapse_zero_branches(tree, 1e-7)
+
+    if RESOLVE_GREEDY:
+        print('Optimally resolving the multifurcations to minimize reassortment...')
+        tree.suppress_unifurcations()  # remove the unifurcations.
+        # Read all alignments and compute the averaged sub rate.
+        aln_by_seg = []
+        total_rate = 0
+        total_sites = 0
+        for i, seg in enumerate(segments):
+            if i == ref_segment_i:
+                aln_by_seg.append(None)
+                continue
+            seg_list = list(SeqIO.parse(seg[1], format='fasta'))
+            seg_aln = {seq.id: seq.seq for seq in seg_list}
+            aln_len = len(seg_list[0].seq)
+            total_rate += seg[3] * aln_len
+            total_sites += aln_len
+            aln_by_seg.append(seg_aln)
+        overall_rate = total_rate / total_sites
+        # print('Concatenated rate:', overall_rate)
+
+        # Concatenate non-ref alignments.
+        concatenated_seqs = []
+        taxa = [leaf.taxon.label for leaf in tree.leaf_nodes()]
+        for taxon in taxa:
+            # Find this taxon across all (non-reference) segments and concatenate aligned sequences.
+            concat_seq = ''
+            for i, seg in enumerate(segments):
+                if i == ref_segment_i:
+                    continue
+                concat_seq += aln_by_seg[i][taxon]
+            concatenated_seqs.append(SeqRecord(concat_seq, id=taxon, name=taxon, description=''))
+        concat_path = descriptor_name + '.concatenated.fasta'
+        SeqIO.write(concatenated_seqs, concat_path, 'fasta')
+
+        # Binarize the tree
+        reassortment_tester = JCReassortmentTester(total_sites, overall_rate / ref_seg[3], pval_threshold, allowed_deviation)
+        rea_detector = ReassortmentDetector(tree, concat_path, 'concatenated', reassortment_tester)
+        rea_detector.binarize_tree_greedy()
+        # tree = rea_detector.tree  # use the binarized tree
+    else:
+        binarize_tree(tree)  # simple binarization, where polytomies are resolved as caterpillars.
+
     tree_indexer = TreeIndexer(tree.taxon_namespace)
     tree_indexer.index_tree(tree)
 
-    ref_seg = segments[ref_segment_i]
-    # child_dists_s1, child1_dists_s1, child2_dists_s1 = compute_parsimony_sibling_dist(tree, ref_seg[1])
-
-    node_by_index = {}
-    node: Node
-    for node in tree.postorder_node_iter():
-        node_by_index[node.index] = node
-
-    edge_annotations = {}
     for i, seg in enumerate(segments):
         if i == ref_segment_i:
             continue
 
         print(f'Inferring reassortment with the {seg[0]} segment...')
-        child_dists_s2, child1_dists_s2, child2_dists_s2 = compute_parsimony_sibling_dist(tree, seg[1])
         seg2_aln = list(SeqIO.parse(seg[1], format='fasta'))
         seg2_len = len(seg2_aln[0])
         rate_ratio = seg[3] / ref_seg[3]
+        reassortment_tester = JCReassortmentTester(seg2_len, rate_ratio, pval_threshold, allowed_deviation)
+        rea_detector = ReassortmentDetector(tree, seg[1], seg[0], reassortment_tester)
 
-        # print('Segment rate ratio: %.5f' % rate_ratio)
-
-        pvalues = [(node.index, jc_pvalue(child_dists_s2[node.index], seg2_len, helpers.sibling_distance(node),
-                                          rate_ratio=rate_ratio, allowed_deviation=allowed_deviation))
-                   for node in tree.internal_nodes()]
-        jc_outliers = [(index, pvalue) for index, pvalue in pvalues if pvalue < pval_threshold]
-        jc_outlier_indices = [x[0] for x in jc_outliers]
-        # print(len(jc_outliers))
-        total_rea, certain_rea = 0, 0
-        for outlier_ind, pvalue in jc_outliers:
-            outlier_node: Node = node_by_index[outlier_ind]
-            specific_edge: Node = None
-            c1, c2 = outlier_node.child_nodes()
-            annotation = f'{seg[0]}({child_dists_s2[outlier_ind]})'
-            if outlier_node != tree.seed_node:
-                c1_pvalue = jc_pvalue(child1_dists_s2[outlier_ind], seg2_len, helpers.aunt_distance(c1),
-                                      rate_ratio=rate_ratio, allowed_deviation=allowed_deviation)
-                c2_pvalue = jc_pvalue(child2_dists_s2[outlier_ind], seg2_len, helpers.aunt_distance(c2),
-                                      rate_ratio=rate_ratio, allowed_deviation=allowed_deviation)
-                c1_outlier = c1_pvalue < pval_threshold
-                c2_outlier = c2_pvalue < pval_threshold
-                if (not c1_outlier) and (not c2_outlier):
-                    # print('Neither', child_dists_s2[outlier_ind], helpers.sibling_distance(outlier_node))
-                    continue
-                if c1_outlier and c2_outlier:
-                    # print('Both', child_dists_s2[outlier_ind], helpers.sibling_distance(outlier_node))
-                    pass
-                if c1_outlier ^ c2_outlier:
-                    specific_edge = c1 if c1_outlier else c2
-            total_rea += 1
-            if specific_edge:
-                certain_rea += 1
-                edge: Edge = specific_edge.edge
-                node_id = edge.head_node.index
-                rea_annotation = edge_annotations.get(node_id, '')
-                rea_annotation = annotation if not rea_annotation else rea_annotation + ',' + annotation
-                edge_annotations[node_id] = rea_annotation
-            elif ADD_UNCERTAIN:
-                for edge in [c1.edge, c2.edge]:
-                    node_id = edge.head_node.index
-                    rea_annotation = edge_annotations.get(node_id, '')
-                    rea_annotation = '?' + annotation if not rea_annotation else rea_annotation + ',?' + annotation
-                    edge_annotations[node_id] = rea_annotation
-        print(f'\tInferred {ref_seg[0]}-{seg[0]} reassortment events: {total_rea}.\n'
-              f'\tIdentified exact branches for {certain_rea}/{total_rea} of them')
+        if method == 'MINCUT':
+            rea_detector.infer_reassortment_mincut()
+        else:
+            rea_detector.infer_reassortment_local(pval_threshold, add_uncertain=ADD_UNCERTAIN)
 
     clades_out = None
     reported_rea = set()
@@ -99,15 +101,15 @@ def run_treesort_cli():
         clades_out = open(clades_out_path, 'w')
 
     for node in tree.postorder_node_iter():
-        annotation = edge_annotations.get(node.index, None)
+        annotation = ','.join(getattr(node.edge, REA_FIELD, []))
         if annotation:
-            if len(node.leaf_nodes()) >= 20:
-                leaf = node.leaf_nodes()[0]
-                # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)  # TODO: comment out
-            else:
-                # print(annotation, len(node.leaf_nodes()), ';'.join([leaf.taxon.label for leaf in node.leaf_nodes()]))
-                pass
-            edge: Edge = node.edge
+            # if len(node.leaf_nodes()) >= 20:
+            #     leaf = node.leaf_nodes()[0]
+            #     # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)  # TODO: comment out
+            # else:
+            #     # print(annotation, len(node.leaf_nodes()), ';'.join([leaf.taxon.label for leaf in node.leaf_nodes()]))
+            #     pass
+            # edge: Edge = node.edge
             node.edge.annotations.add_new('rea', f'"{annotation}"')
             node.edge.annotations.add_new('is_reassorted', '1')
 
