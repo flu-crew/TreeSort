@@ -31,7 +31,6 @@ def run_treesort_cli():
     tree: Tree = Tree.get(path=ref_tree_path, schema='newick', preserve_underscores=True)
     ref_seg = segments[ref_segment_i]
     if collapse_branches:
-        print('collapsing brunches')
         collapse_zero_branches(tree, 1e-7)
 
     if RESOLVE_GREEDY:

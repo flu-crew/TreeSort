@@ -172,8 +172,6 @@ class ReassortmentDetector(object):
             setattr(node, MINCUT_STATES, [MinCutState(node, node.state_sets)])  # Initialize a new mincutstate for the leaf.
         for node in self.tree.postorder_internal_node_iter():
             child1, child2 = node.child_nodes()
-            if child1.taxon and child1.taxon.label in ('A/duck/Fujian/668/2006|2006', 'A/duck/Fujian/11094/2005|2005'):
-                print('debug thingy')
             compatible_pairs: List[Tuple[MinCutState, MinCutState, float]] = []  # (left_state, right_state, pvalue)
             for left_state in getattr(child1, MINCUT_STATES):
                 best_match: Tuple[MinCutState, float] = (None, math.inf)  # right_state and pvalue.
