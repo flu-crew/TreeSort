@@ -111,20 +111,22 @@ def prune_and_update_alignments(aln_by_seg: List[Dict[str, SeqRecord]], segments
             aln_map = aln_by_seg[i]
             new_aln: List[SeqRecord] = []
             upd_aln_map: Dict[str, SeqRecord] = {}
+            added_labels_upper = set()
             upd_aln_by_seg.append(upd_aln_map)
             new_aln_path = os.path.join(outdir, f'{seg[0]}_unified.aln')
             for label in aln_map:
                 new_label = extract_join_regex(label, join_on_regex, print_error=False)
                 if new_label and new_label in common_taxa:
-                    if new_label in upd_aln_map:
+                    if new_label.upper() in added_labels_upper:
                         # print(f'REPEATED strain {new_label} in segment {seg[0]} - discarding')
-                        continue
+                        continue  # do not add to the alignment
                     else:
                         record = aln_map[label]
                         record.id = record.name = new_label
                         record.description = ''
                         new_aln.append(record)
                         upd_aln_map[new_label] = record
+                        added_labels_upper.add(new_label.upper())
             SeqIO.write(new_aln, new_aln_path, 'fasta')
             segments[i] = (seg[0], new_aln_path, seg[2], seg[3])
         return upd_aln_by_seg
