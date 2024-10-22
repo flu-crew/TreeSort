@@ -17,6 +17,8 @@ from treesort.helpers import parse_dates
 DEFAULT_PVALUE_THRESHOLD = 0.001
 DEFAULT_DEVIATION = 2
 DEFAULT_METHOD = 'LOCAL'
+STRAIN_NAME_REGEX = r'([ABCD](/[^/\|]+){3,5})'
+EPI_ISL_REGEX = r'(EPI_ISL_\d+)'
 
 # Program interface:
 parser = argparse.ArgumentParser(description='TreeSort: fast and effective reassortment detection in '
@@ -40,6 +42,16 @@ parser.add_argument('--pvalue', type=float, action='store', dest='pvalue',
                     help='The cutoff p-value for the reassortment tests: the default is 0.001 (0.1 percent). '
                          'You may want to decrease or increase this parameter depending on how stringent you want '
                          'the analysis to be', required=False)
+parser.add_argument('--match-on-strain', action='store_true', dest='match_strain',
+                    help='Match the names (deflines in fastas) across the segments based on the strain name. '
+                         'E.g., "A/Texas/32/2021" or "A/swine/A0229832/Iowa/2021". Works for flu A, B, C, and D.'
+                         'This way no preprocessing is needed to standardize the names before the analysis.')
+parser.add_argument('--match-on-epi', action='store_true', dest='match_epi',
+                    help='Similar to "--match-on-strain", but here segments are matched based on the "EPI_ISL_XXX" '
+                         'field (if present in deflines)')
+parser.add_argument('--match-on-regex', action='store', dest='match_regex',
+                    help='Provide your own custom regex to match the segments across the alignments.',
+                    required=False)
 parser.add_argument('--no-collapse', action='store_true', dest='no_collapse',
                     help='Do not collapse near-zero length branches into multifurcations '
                          '(by default, TreeSort collapses all branches shorter than 1e-7 and then optimizes '
@@ -58,9 +70,9 @@ def make_outdir(descriptor_path: str) -> str:
         descriptor_name = '.'.join(descriptor_path.split('.')[:-1])
     else:
         descriptor_name = descriptor_path
-    i = 0
+    i = 1
     outdir = f'treesort-{descriptor_name}-{i}'
-    while os.path.exists(outdir) and i < 50:
+    while os.path.exists(outdir) and i <= 50:
         i += 1
         outdir = f'treesort-{descriptor_name}-{i}'
     if not os.path.exists(outdir):
@@ -75,7 +87,7 @@ def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False,
     if len(tree.leaf_nodes()) > 1000:
         # TODO: implement Bio.Phylo tree subsampling to avoid creating temporary files
         # Downsample the tree for rate estimation
-        tree_path = tree_path + '.sample1k.tre'
+        tree_path = os.path.join(outdir, os.path.split(tree_path)[-1] + '.sample1k.tre')
         taxa_labels = [t.label for t in tree.taxon_namespace]
         random.shuffle(taxa_labels)
         subtree: Tree = tree.extract_tree_with_taxa_labels(taxa_labels[:1000])
@@ -102,7 +114,7 @@ def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False,
 
 
 # Currently requiring a tree for all segments
-def parse_descriptor(path: str, estimate_rates=True):
+def parse_descriptor(path: str, outdir: str, estimate_rates=True):
     segments = []
     ref_segment = -1
     with open(path) as descriptor:
@@ -126,7 +138,6 @@ def parse_descriptor(path: str, estimate_rates=True):
 
     print(f'Read {len(segments)} segments: {", ".join([seg[0] for seg in segments])}')
     if estimate_rates:
-        outdir = make_outdir(path)
         print('Estimating molecular clock rates for each segment (TreeTime)...')
         for i, seg in enumerate(segments):
             seg_name, aln_path, tree_path, _ = seg
@@ -161,8 +172,21 @@ def parse_args():
         else:
             parser.error(f'Unknown method "{args.method}". Known methods are "local" or "mincut".')
 
-    collapse_branches = False if args.no_collapse else True
-    segments, ref_segment = parse_descriptor(args.descriptor, not args.equal_rates)
+    # Check for a MATCH regex
+    match_regex = None
+    if args.match_strain:
+        match_regex = STRAIN_NAME_REGEX
+    if args.match_epi:
+        match_regex = EPI_ISL_REGEX
+    if args.match_regex:
+        match_regex = args.match_regex
+    if match_regex:
+        print(f'Using the "{match_regex}" REGEX to match segments across trees and alignments.')
 
-    return args.descriptor, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
-           collapse_branches
+    collapse_branches = False if args.no_collapse else True
+
+    outdir = make_outdir(args.descriptor)
+    segments, ref_segment = parse_descriptor(args.descriptor, outdir, not args.equal_rates)
+
+    return args.descriptor, outdir, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
+           collapse_branches, match_regex

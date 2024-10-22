@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import sys
+from typing import List, Optional, Dict, Tuple, Set
+import re
+import os
 
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from dendropy import Tree, Node, Edge
+from dendropy import Tree, Node, Edge, Taxon
 
 from treesort import options, helpers
 from treesort.helpers import binarize_tree, collapse_zero_branches
@@ -13,43 +16,163 @@ from treesort.reassortment_inference import REA_FIELD, ReassortmentDetector
 from treesort.jc_reassortment_test import JCReassortmentTester
 
 ADD_UNCERTAIN = True  # For local method only.
-# METHOD = 'LOCAL'  # MINCUT or LOCAL.
-RESOLVE_GREEDY = True  # Whether to use the greedy multifurcation reslution algorithm
-# COLLAPSE_ZERO_BRANCHES = True
+RESOLVE_GREEDY = True  # Whether to use the greedy multifurcation resolution algorithm
+MIN_TAXA_THRESHOLD = 10
 
 
-# TODO: taxa should be identified by strain name only (then substituted before writing the output tree).
-#  a regex can be used to specify a capture pattern
+def extract_join_regex(label: str, join_on_regex: str, print_error=True) -> Optional[str]:
+    """
+    Extracts the portion of the strain label captured by 'join_on_regex'.
+    """
+    re_search = re.search(join_on_regex, label)
+    if re_search and re_search.group(0):
+        return re_search.group(0)
+    else:
+        if print_error:
+            print(f'Cannot match pattern {join_on_regex} to {label}. Skipping this strain.')
+        return None
+
+
+def is_taxon_in_tree(label: str, tree: Tree, join_on_regex=None) -> bool:
+    if join_on_regex:
+        label = extract_join_regex(label, join_on_regex)
+        tree_labels = {extract_join_regex(leaf.taxon.label, join_on_regex) for leaf in tree.leaf_nodes()}
+    else:
+        tree_labels = {leaf.taxon.label for leaf in tree.leaf_nodes()}
+    if label:
+        return label in tree_labels
+    else:
+        return False
+
+
+def get_aln_labels(aln: Dict[str, SeqRecord], join_on_regex=None) -> Set[str]:
+    """
+    Get a set of strain labels from the alignment
+    (returns the label portion matched by 'join_on_regex' only, if specified).
+    """
+    if join_on_regex:
+        return {extract_join_regex(strain, join_on_regex) for strain in aln.keys()}
+    else:
+        return set(aln.keys())
+
+
+def is_taxon_in_aln(label: str, aln_labels: Set[str], join_on_regex=None) -> bool:
+    if join_on_regex:
+        label = extract_join_regex(label, join_on_regex)
+    if label:
+        return label in aln_labels
+    else:
+        return False
+
+
+def find_common_taxa(aln_by_seg: List[Dict[str, SeqRecord]], ref_segment_i: int, join_on_regex=None) -> List[str]:
+    # Find taxa in common.
+    aln_labels_by_seg = [get_aln_labels(aln, join_on_regex) for aln in aln_by_seg]
+    common_taxa = [extract_join_regex(strain, join_on_regex) if join_on_regex else strain
+                   for strain in aln_by_seg[ref_segment_i] if
+                   all([is_taxon_in_aln(strain, aln_labels, join_on_regex) for aln_labels in aln_labels_by_seg])]
+    return common_taxa
+
+
+def prune_tree_to_taxa(tree: Tree, common_taxa: List[str], join_on_regex=None) -> Optional[Dict[str, str]]:
+    """
+    Prune the tree and rename the taxa according to 'join_on_regex' regex, if provided.
+    Returns a dictionary that maps the new names to the old names (if subs were made).
+    """
+    name_map: Optional[Dict[str, str]] = None
+    if join_on_regex:
+        # Need to rename all taxa first.
+        name_map = {}
+        new_taxa = set()
+        taxon: Taxon
+        for taxon in tree.taxon_namespace:
+            new_label = extract_join_regex(taxon.label, join_on_regex, print_error=False)
+            if new_label:
+                if new_label not in new_taxa:
+                    name_map[new_label] = taxon.label
+                    taxon.label = new_label
+                    new_taxa.add(new_label)
+                else:
+                    print(f'REPEATED strain {new_label} - discarding the copy')
+
+    # Prune the tree.
+    tree.retain_taxa_with_labels(common_taxa)
+    return name_map
+
+
+def prune_and_update_alignments(aln_by_seg: List[Dict[str, SeqRecord]], segments: List[Tuple[str, str, str, float]],
+                                common_taxa: List[str], outdir: str, join_on_regex=None) -> List[Dict[str, SeqRecord]]:
+    if not join_on_regex:
+        # Don't need to do anything.
+        return aln_by_seg
+    else:
+        upd_aln_by_seg: List[Dict[str, SeqRecord]] = []
+        for i, seg in enumerate(segments):
+            aln_map = aln_by_seg[i]
+            new_aln: List[SeqRecord] = []
+            upd_aln_map: Dict[str, SeqRecord] = {}
+            upd_aln_by_seg.append(upd_aln_map)
+            new_aln_path = os.path.join(outdir, f'{seg[0]}_unified.aln')
+            for label in aln_map:
+                new_label = extract_join_regex(label, join_on_regex, print_error=False)
+                if new_label and new_label in common_taxa:
+                    if new_label in upd_aln_map:
+                        # print(f'REPEATED strain {new_label} in segment {seg[0]} - discarding')
+                        continue
+                    else:
+                        record = aln_map[label]
+                        record.id = record.name = new_label
+                        record.description = ''
+                        new_aln.append(record)
+                        upd_aln_map[new_label] = record
+            SeqIO.write(new_aln, new_aln_path, 'fasta')
+            segments[i] = (seg[0], new_aln_path, seg[2], seg[3])
+        return upd_aln_by_seg
 
 
 def run_treesort_cli():
     # Each segment has format (name, aln_path, tree_path, rate)
     sys.setrecursionlimit(100000)
-    descriptor_name, segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation, \
-        method, collapse_branches = options.parse_args()
+    segments: List[Tuple[str, str, str, float]]  # name, aln path, tree path, rate.
+    descriptor_name, outdir, segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation, \
+        method, collapse_branches, join_on_regex = options.parse_args()
     ref_tree_path = segments[ref_segment_i][2]
     tree: Tree = Tree.get(path=ref_tree_path, schema='newick', preserve_underscores=True)
     ref_seg = segments[ref_segment_i]
     if collapse_branches:
         collapse_zero_branches(tree, 1e-7)
 
+    # Parse the alignments into a list of dictionaries.
+    aln_by_seg: List[Dict[str, SeqRecord]] = []
+    for i, seg in enumerate(segments):
+        seg_list = list(SeqIO.parse(seg[1], format='fasta'))
+        seg_aln = {seq.id: seq for seq in seg_list}
+        aln_by_seg.append(seg_aln)
+
+    # Find taxa in common and prune trees/alignments if needed.
+    common_taxa = find_common_taxa(aln_by_seg, ref_segment_i, join_on_regex)
+    name_map: Optional[Dict[str, str]] = None # New to old label names map (if subs were made)
+    if len(common_taxa) >= MIN_TAXA_THRESHOLD:
+        print(f'Found {len(common_taxa)} strains in common across the alignments.')
+        name_map = prune_tree_to_taxa(tree, common_taxa, join_on_regex)
+        aln_by_seg = prune_and_update_alignments(aln_by_seg, segments, common_taxa, outdir, join_on_regex)
+    else:
+        # Print an error and exit.
+        print(f'Found {len(common_taxa)} strains in common across the segment alignments - insufficient for a reassortment analysis.')
+        exit(-1)
+
     if RESOLVE_GREEDY:
         print('Optimally resolving the multifurcations to minimize reassortment...')
         tree.suppress_unifurcations()  # remove the unifurcations.
-        # Read all alignments and compute the averaged sub rate.
-        aln_by_seg = []
+        # Compute the averaged sub rate.
         total_rate = 0
         total_sites = 0
         for i, seg in enumerate(segments):
             if i == ref_segment_i:
-                aln_by_seg.append(None)
                 continue
-            seg_list = list(SeqIO.parse(seg[1], format='fasta'))
-            seg_aln = {seq.id: seq.seq for seq in seg_list}
-            aln_len = len(seg_list[0].seq)
+            aln_len = len(next(iter(aln_by_seg[i].values())).seq)
             total_rate += seg[3] * aln_len
             total_sites += aln_len
-            aln_by_seg.append(seg_aln)
         overall_rate = total_rate / total_sites
         # print('Concatenated rate:', overall_rate)
 
@@ -62,9 +185,9 @@ def run_treesort_cli():
             for i, seg in enumerate(segments):
                 if i == ref_segment_i:
                     continue
-                concat_seq += aln_by_seg[i][taxon]
+                concat_seq += aln_by_seg[i][taxon].seq
             concatenated_seqs.append(SeqRecord(concat_seq, id=taxon, name=taxon, description=''))
-        concat_path = descriptor_name + '.concatenated.fasta'
+        concat_path = os.path.join(outdir, descriptor_name + '.concatenated.fasta')
         SeqIO.write(concatenated_seqs, concat_path, 'fasta')
 
         # Binarize the tree
@@ -83,8 +206,8 @@ def run_treesort_cli():
             continue
 
         print(f'Inferring reassortment with the {seg[0]} segment...')
-        seg2_aln = list(SeqIO.parse(seg[1], format='fasta'))
-        seg2_len = len(seg2_aln[0])
+        # seg2_aln = list(SeqIO.parse(seg[1], format='fasta'))
+        seg2_len = len(next(iter(aln_by_seg[i].values())).seq)
         rate_ratio = seg[3] / ref_seg[3]
         reassortment_tester = JCReassortmentTester(seg2_len, rate_ratio, pval_threshold, allowed_deviation)
         rea_detector = ReassortmentDetector(tree, seg[1], seg[0], reassortment_tester)
@@ -104,7 +227,7 @@ def run_treesort_cli():
         if annotation:
             # if len(node.leaf_nodes()) >= 20:
             #     leaf = node.leaf_nodes()[0]
-            #     # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)  # TODO: comment out
+            #     # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)
             # else:
             #     # print(annotation, len(node.leaf_nodes()), ';'.join([leaf.taxon.label for leaf in node.leaf_nodes()]))
             #     pass
@@ -134,8 +257,15 @@ def run_treesort_cli():
     if clades_out:
         clades_out.close()
 
-    rea_rate = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
-    print(f'Estimated reassortment rate per lineage per year: {round(rea_rate, 6)}')
+    if ref_seg[3] < 1:  # Do not estimate the reassortment rate if --equal-rates was given.
+        rea_rate = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
+        print(f'Estimated reassortment rate per lineage per year: {round(rea_rate, 6)}')
+
+    if name_map:
+        # Substitute the labels back.
+        for leaf in tree.leaf_node_iter():
+            if leaf.taxon:
+                leaf.taxon.label = name_map[leaf.taxon.label]
 
     tree.write_to_path(output_path, schema='nexus')
     # tree.write_to_path(output_path + 'phylo.xml', schema='phyloxml')
