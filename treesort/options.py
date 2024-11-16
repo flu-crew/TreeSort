@@ -80,7 +80,7 @@ def make_outdir(descriptor_path: str) -> str:
     return outdir
 
 
-def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False, outdir=None) -> (float, float):
+def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False, outdir='.') -> (float, float):
     # This code was adapted from the  'estimate_clock_model' method in the treetime/wrappers.py.
     # print(f"\tExecuting TreeTime on segment {segment}...")
     tree: Tree = Tree.get(path=tree_path, schema='newick', preserve_underscores=True)

@@ -11,7 +11,7 @@ from dendropy import Tree, Node, Edge, Taxon
 from treesort import options, helpers
 from treesort.helpers import binarize_tree, collapse_zero_branches
 from treesort.tree_indexer import TreeIndexer
-from treesort.reassortment_utils import compute_rea_rate_simple
+from treesort.reassortment_utils import compute_rea_rate_simple, compute_rea_rate_binary_mle
 from treesort.reassortment_inference import REA_FIELD, ReassortmentDetector
 from treesort.jc_reassortment_test import JCReassortmentTester
 
@@ -260,8 +260,13 @@ def run_treesort_cli():
         clades_out.close()
 
     if ref_seg[3] < 1:  # Do not estimate the reassortment rate if --equal-rates was given.
-        rea_rate = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
-        print(f'Estimated reassortment rate per lineage per year: {round(rea_rate, 6)}')
+        rea_rate_1 = compute_rea_rate_binary_mle(tree, ref_seg[3],
+                                    ref_seg_len=len(next(iter(aln_by_seg[ref_segment_i].values())).seq))
+        rea_rate_2 = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
+        print(f'\nEstimated reassortment rate per ancestral lineage per year.')
+        if rea_rate_1:
+            print(f'\tBernoulli estimate: {round(rea_rate_1, 6)}')
+        print(f'\tPoisson estimate (for dense datasets): {round(rea_rate_2, 6)}')
 
     if name_map:
         # Substitute the labels back.
