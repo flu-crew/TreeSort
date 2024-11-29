@@ -11,6 +11,12 @@ Below is an example of (a small part of) TreeSort output after it was run on an 
 <img src="tutorial/figures/swH1-reassortment-ex1.png">
 </center>
 
+### Citation ###
+**If you use TreeSort, please cite it as**</br>
+*Markin, A., Macken, C.A., Baker, A.L., and Anderson, T.K. Revealing reassortment in influenza A viruses with TreeSort. bioRxiv 2024.11.15.623781; [doi: https://doi.org/10.1101/2024.11.15.623781](https://doi.org/10.1101/2024.11.15.623781).*
+
+N.B. TreeSort integrates the TreeTime suite, please also cite *Sagulenko et al. 2018 [doi: 10.1093/ve/vex042](https://doi.org/10.1093/ve/vex042).*
+
 ### Installation ###
 To install TreeSort, run `pip install treesort`. Alternatively, you can download this repository and run `pip install .` from within the downloaded directory.
 
