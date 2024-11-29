@@ -114,7 +114,8 @@ def likelihood_binary(x, rea_events, edge_lengths):
             else:
                 func -= (-1 * x * edge_lengths[i])
         elif rea_events[i] > 0:
-            print('+1')
+            # print('+1')
+            pass
     return func
 
 
@@ -159,7 +160,7 @@ def compute_rea_rate_binary_mle(annotated_tree: Tree, evol_rate: float, ref_seg_
         else:
             edge_lengths.append(0)
 
-    print(len(rea_events), len(edge_lengths))
+    # print(len(rea_events), len(edge_lengths))
     est = compute_rea_rate_simple(annotated_tree, evol_rate, ignore_top_edges=1)
     np_est = np.array([est])
     linear_constraint = LinearConstraint([[1]], [0])
