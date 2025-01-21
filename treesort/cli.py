@@ -224,16 +224,13 @@ def run_treesort_cli():
     if clades_out_path:
         clades_out = open(clades_out_path, 'w')
 
+    node: Node
     for node in tree.postorder_node_iter():
+        if node.is_internal():
+            node.label = f'NODE_{node.index}'  # Add node labels to the output tree.
+
         annotation = ','.join(getattr(node.edge, REA_FIELD, []))
         if annotation:
-            # if len(node.leaf_nodes()) >= 20:
-            #     leaf = node.leaf_nodes()[0]
-            #     # print(annotation, len(node.leaf_nodes()), leaf.taxon.label)
-            # else:
-            #     # print(annotation, len(node.leaf_nodes()), ';'.join([leaf.taxon.label for leaf in node.leaf_nodes()]))
-            #     pass
-            # edge: Edge = node.edge
             node.edge.annotations.add_new('rea', f'"{annotation}"')
             node.edge.annotations.add_new('is_reassorted', '1')
 

@@ -100,16 +100,7 @@ class ReassortmentDetector(object):
                 lca_state_sets.append(intersection)
         lca.state_sets = lca_state_sets
 
-    # def propagate_to_parent(self, node: Node):
-    #     parent_state_sets = [s.copy() for s in node.state_sets]  # Copy state sets to the parent node.
-    #     node.parent_node.state_sets = parent_state_sets
-    #     setattr(node.parent_node, PROPAGATED_FROM, node)  # Set the PROPAGATED_FROM field.
-
     def add_rea_annotation(self, edge: Edge, parsimony_dist: int, is_uncertain: bool):
-        # node = edge.head_node
-        # while getattr(node, PROPAGATED_FROM, None):  # Go down to the lowest non-propagated node (if needed).
-        #     node = getattr(node, PROPAGATED_FROM)
-        # edge = node.edge
         annotation = f'{"?" if is_uncertain else ""}{self.segment}({parsimony_dist})'
         rea_events = getattr(edge, REA_FIELD, [])
         rea_events.append(annotation)
@@ -165,8 +156,9 @@ class ReassortmentDetector(object):
         This algorithm cuts the tree into the smallest number of reassortment-free subtrees possible.
         :return: The number of inferred reassortment events.
         """
-        tree_indexer = TreeIndexer(self.tree.taxon_namespace)
-        tree_indexer.index_tree(self.tree)
+        if not TreeIndexer.is_indexed(self.tree):
+            tree_indexer = TreeIndexer(self.tree.taxon_namespace)
+            tree_indexer.index_tree(self.tree)
         node: Node  # every node will get a 'mincut_states' list.
         for node in self.tree.leaf_nodes():
             setattr(node, MINCUT_STATES, [MinCutState(node, node.state_sets)])  # Initialize a new mincutstate for the leaf.
@@ -238,8 +230,9 @@ class ReassortmentDetector(object):
         The first (local) implementation, where the reassortment placement is determined by the aunt node.
         If reassortment placement in unclear, both branches get marked as potential reassortment events.
         """
-        tree_indexer = TreeIndexer(self.tree.taxon_namespace)
-        tree_indexer.index_tree(self.tree)
+        if not TreeIndexer.is_indexed(self.tree):
+            tree_indexer = TreeIndexer(self.tree.taxon_namespace)
+            tree_indexer.index_tree(self.tree)
         child_dists_s2, child1_dists_s2, child2_dists_s2 = compute_parsimony_sibling_dist(self.tree, self.aln_path)
         node_by_index = {}
         node: Node
