@@ -57,11 +57,14 @@ parser.add_argument('--no-collapse', action='store_true', dest='no_collapse',
                          '(by default, TreeSort collapses all branches shorter than 1e-7 and then optimizes '
                          'the multifurcations).')
 parser.add_argument('--equal-rates', action='store_true', dest='equal_rates',
-                    help='Do not estimate molecular clock rates for different segments: assume equal rates',
+                    help='Do not estimate molecular clock rates for different segments: assume equal rates. '
+                         'Ignored if --timetree is specified',
                     required=False)
 parser.add_argument('--clades', type=str, action='store', dest='clades_path',
                     help='Path to an output file, where clades with evidence of reassrotment will be saved',
                     required=False)
+parser.add_argument('--timetree', action='store_true', dest='timetree',
+                    help='Indicates that the reference tree is time-scaled (e.g., through TreeTime)')
 
 
 def make_outdir(descriptor_path: str) -> str:
@@ -114,7 +117,7 @@ def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False,
 
 
 # Currently requiring a tree for all segments
-def parse_descriptor(path: str, outdir: str, estimate_rates=True):
+def parse_descriptor(path: str, outdir: str, estimate_rates=True, timetree=False):
     segments = []
     ref_segment = -1
     with open(path) as descriptor:
@@ -140,9 +143,13 @@ def parse_descriptor(path: str, outdir: str, estimate_rates=True):
     if estimate_rates:
         print('Estimating molecular clock rates for each segment (TreeTime)...')
         for i, seg in enumerate(segments):
-            seg_name, aln_path, tree_path, _ = seg
-            seg_rate, r_val = estimate_clock_rate(seg_name, tree_path, aln_path, plot=True, outdir=outdir)
-            segments[i] = (seg_name, aln_path, tree_path, seg_rate)
+            if timetree and i == ref_segment:
+                # If the reference tree is a timetree = use 1 for the rate.
+                print(f"\t{seg[0]} (time-tree), rate 1")
+            else:
+                seg_name, aln_path, tree_path, _ = seg
+                seg_rate, r_val = estimate_clock_rate(seg_name, tree_path, aln_path, plot=True, outdir=outdir)
+                segments[i] = (seg_name, aln_path, tree_path, seg_rate)
     return segments, ref_segment
 
 
@@ -186,7 +193,8 @@ def parse_args():
     collapse_branches = False if args.no_collapse else True
 
     outdir = make_outdir(args.descriptor)
-    segments, ref_segment = parse_descriptor(args.descriptor, outdir, not args.equal_rates)
+    estimate_rates = args.timetree or (not args.equal_rates)
+    segments, ref_segment = parse_descriptor(args.descriptor, outdir, estimate_rates, args.timetree)
 
     return args.descriptor, outdir, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
-           collapse_branches, match_regex
+           collapse_branches, match_regex, args

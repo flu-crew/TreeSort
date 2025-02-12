@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 import sys
 from typing import List, Optional, Dict, Tuple, Set
 import re
@@ -137,10 +138,16 @@ def run_treesort_cli():
     sys.setrecursionlimit(100000)
     segments: List[Tuple[str, str, str, float]]  # name, aln path, tree path, rate.
     descriptor_name, outdir, segments, ref_segment_i, output_path, clades_out_path, pval_threshold, allowed_deviation, \
-        method, collapse_branches, join_on_regex = options.parse_args()
+        method, collapse_branches, join_on_regex, args = options.parse_args()
     ref_tree_path = segments[ref_segment_i][2]
     tree: Tree = Tree.get(path=ref_tree_path, schema='newick', preserve_underscores=True)
     ref_seg = segments[ref_segment_i]
+
+    if args.timetree:
+        # reduce the deviation rate.
+        if allowed_deviation > 1:
+            allowed_deviation = math.sqrt(allowed_deviation)
+
     if collapse_branches:
         collapse_zero_branches(tree, 1e-7)
 
@@ -227,7 +234,7 @@ def run_treesort_cli():
     node: Node
     for node in tree.postorder_node_iter():
         if node.is_internal():
-            node.label = f'NODE_{node.index}'  # Add node labels to the output tree.
+            node.label = f'TS_NODE_{node.index}'  # Add node labels to the output tree.
 
         annotation = ','.join(getattr(node.edge, REA_FIELD, []))
         if annotation:
@@ -256,7 +263,7 @@ def run_treesort_cli():
     if clades_out:
         clades_out.close()
 
-    if ref_seg[3] < 1:  # Do not estimate the reassortment rate if --equal-rates was given.
+    if ref_seg[3] < 1 or args.timetree:  # Do not estimate the reassortment rate if --equal-rates was given.
         rea_rate_1 = compute_rea_rate_binary_mle(tree, ref_seg[3],
                                     ref_seg_len=len(next(iter(aln_by_seg[ref_segment_i].values())).seq))
         rea_rate_2 = compute_rea_rate_simple(tree, ref_seg[3], ignore_top_edges=1)
