@@ -110,10 +110,13 @@ class ReassortmentDetector(object):
         """
         Greedily resolve multifurcations by grouping siblings into non-reassortant groups.
         """
+        multifurcations = 0
         node: Node
         for node in self.tree.postorder_node_iter():
             if node.child_nodes() and len(node.child_nodes()) > 2:
                 # Found a multifurcation.
+                multifurcations += 1
+                # print('Multifurcation size:', len(node.child_nodes()))
                 siblings = node.child_nodes()
                 rnd.shuffle(siblings)  # Randomly shuffle all the siblings.
 
@@ -149,6 +152,7 @@ class ReassortmentDetector(object):
                         new_siblings.append(merged_node)
                     node.set_child_nodes(new_siblings)
                     self.propagate_parsimony(new_siblings[0], new_siblings[1], node)
+        print('Multifurcations resolved:', multifurcations)
 
     def infer_reassortment_mincut(self) -> int:
         """

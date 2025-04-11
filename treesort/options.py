@@ -3,6 +3,7 @@ import argparse
 from argparse import RawDescriptionHelpFormatter
 import random
 import os
+from typing import Tuple
 
 import matplotlib
 
@@ -67,7 +68,7 @@ parser.add_argument('--timetree', action='store_true', dest='timetree',
                     help='Indicates that the reference tree is time-scaled (e.g., through TreeTime)')
 
 
-def make_outdir(descriptor_path: str) -> str:
+def make_outdir(descriptor_path: str) -> Tuple[str, str]:
     descriptor_path = descriptor_path.split(os.path.sep)[-1]
     if descriptor_path.count('.') > 0:
         descriptor_name = '.'.join(descriptor_path.split('.')[:-1])
@@ -80,7 +81,7 @@ def make_outdir(descriptor_path: str) -> str:
         outdir = f'treesort-{descriptor_name}-{i}'
     if not os.path.exists(outdir):
         os.mkdir(outdir)
-    return outdir
+    return outdir, descriptor_name
 
 
 def estimate_clock_rate(segment: str, tree_path: str, aln_path: str, plot=False, outdir='.') -> (float, float):
@@ -192,9 +193,9 @@ def parse_args():
 
     collapse_branches = False if args.no_collapse else True
 
-    outdir = make_outdir(args.descriptor)
+    outdir, descriptor_name = make_outdir(args.descriptor)
     estimate_rates = args.timetree or (not args.equal_rates)
     segments, ref_segment = parse_descriptor(args.descriptor, outdir, estimate_rates, args.timetree)
 
-    return args.descriptor, outdir, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
+    return descriptor_name, outdir, segments, ref_segment, args.output, args.clades_path, pval, deviation, method, \
            collapse_branches, match_regex, args
