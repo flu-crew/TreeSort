@@ -1,0 +1,5 @@
+fasttree
+iqtree
+mafft
+pip
+smof
