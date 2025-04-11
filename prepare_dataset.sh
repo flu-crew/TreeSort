@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Usage: ./prepare_dataset.sh [--segments "..." --fast] fasta_path reference_segment outdir
-# Using --fast will make all trees to be inferred with FastTree. 
+# Using --fast will make all trees to be inferred with FastTree.
 # By default (without --fast) the reference tree is inferred with IQ-Tree, which is recommended for better accuracy.
 # Example usage: ./prepare_dataset.sh --segments "HA,NA" segments.fasta HA myoutdir
 # Example with default segments:  ./prepare_dataset.sh segments.fasta HA myoutdir
@@ -13,26 +13,26 @@ FAST=0
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
-  	case $1 in
-  		--segments)
-	  		SEGMENTS_STR="$2"
-	  		segments=(${SEGMENTS_STR//,/ })
-	  		shift  # past argument
-	  		shift  # past value
-      		;;
-      	--fast)
+	case $1 in
+		--segments)
+			SEGMENTS_STR="$2"
+			segments=(${SEGMENTS_STR//,/ })
+			shift  # past argument
+			shift  # past value
+			;;
+		--fast)
 			FAST=1
 			shift
 			;;
-    	-*|--*)
-    		echo "Unrecognized option $1"
-      		exit 1
-      		;;
-    	*)
-      		POSITIONAL_ARGS+=("$1")  # save positional arg
-      		shift  # past argument
-      		;;
-  	esac
+		-*|--*)
+			echo "Unrecognized option $1"
+			exit 1
+			;;
+		*)
+			POSITIONAL_ARGS+=("$1")  # save positional arg
+			shift  # past argument
+			;;
+	esac
 done
 
 set -- "${POSITIONAL_ARGS[@]}"
