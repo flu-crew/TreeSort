@@ -19,7 +19,7 @@ def compute_rea_rate_simple(annotated_tree: Tree, evol_rate: float, ignore_top_e
     edge_cutoff = math.inf
     if ignore_top_edges > 0:
         edge_lengths = sorted([node.edge_length for node in annotated_tree.postorder_node_iter() if node.edge_length])
-        top_percentile = int(round(len(edge_lengths) * (1.0 - ignore_top_edges / 100)))
+        top_percentile = min(len(edge_lengths) - 1, int(round(len(edge_lengths) * (1.0 - ignore_top_edges / 100))))
         edge_cutoff = edge_lengths[top_percentile]
 
     # Compute the number of reassortment events detected (a ?-only edge counts as 0.5).
