@@ -18,7 +18,7 @@ Below is an example of 2 reassortment events inferred by TreeSort on a swine H1 
 
 ### Citation ###
 **If you use TreeSort, please cite it as**</br>
-*Markin, A., Macken, C.A., Baker, A.L., and Anderson, T.K. Revealing reassortment in influenza A viruses with TreeSort. bioRxiv 2024.11.15.623781; [doi: https://doi.org/10.1101/2024.11.15.623781](https://doi.org/10.1101/2024.11.15.623781).*
+*Markin, A., Macken, C.A., Baker, A.L., and Anderson, T.K. Revealing reassortment in influenza A viruses with TreeSort. Molecular Biology and Evolution 42(8), msaf133; [doi: https://doi.org/10.1093/molbev/msaf133](https://doi.org/10.1093/molbev/msaf133).*
 
 N.B. TreeSort uses TreeTime in a subroutine to infer substitution rates for segments - please also cite *Sagulenko et al. 2018 [doi: 10.1093/ve/vex042](https://doi.org/10.1093/ve/vex042).*
 
