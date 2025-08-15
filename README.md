@@ -2,7 +2,7 @@
 
 ![TreeSort logo](tutorial/figures/TreeSort-logo-150.png)
 
-TreeSort infers both recent and ancestral reassortment events along the branches of a phylogenetic tree of a fixed genomic segment.
+The tool infers both recent and ancestral reassortment events along the branches of a phylogenetic tree of a fixed genomic segment.
 It uses a statistical hypothesis testing framework to identify branches where reassortment with other segments has occurred and reports these events.
 
 <!-- The idea behind TreeSort is the observation that *if there is no reassortment, then the evolutionary histories of different segments should be identical*. TreeSort then uses a phylogenetic tree for one segment (e.g., the HA influenza A virus segment) as an evolutionary hypothesis for another segment (e.g., the NA segment). We will refer to the first segment as the *reference* and the second segment as the *challenge*. By trying to fit the sequence alignment of the challenge segment to the reference tree, TreeSort identifies points on that tree, where this evolutionary hypothesis breaks. The "breaking" manifests in the mismatch between the divergence time on the reference tree (e.g., 1 year divergence between sister clades) and an unlikely high number of substitutions in the challenge segment that are required to explain the reference tree topology under the null hypothesis of no reassortment.
@@ -13,7 +13,7 @@ Below is an example of 2 reassortment events inferred by TreeSort on a swine H1 
 
 <!-- ![An example of inferred reassortment events](tutorial/figures/TreeSort-illustration.png) -->
 <center>
-<img style="max-width: 700px" src="tutorial/figures/TreeSort-illustration.png">
+<img style="max-width: 500px" src="tutorial/figures/TreeSort-illustration.png">
 </center>
 
 ### Citation ###
