@@ -69,7 +69,7 @@ if [ $FAST -eq 0 ]; then
 
 	# Build an IQ-Tree tree for the reference segment. We use the GTR+F+R5 model by default which can be changed
 	echo "Building the reference tree with IQ-Tree..."
-	iqtree2 -s ${outdir}/${ref_seg}-${name}.aln -T 6 --prefix "${outdir}/${ref_seg}-${name}" -m GTR+G+R5
+	iqtree2 -s ${outdir}/${ref_seg}-${name}.aln -T 6 --prefix "${outdir}/${ref_seg}-${name}" -m GTR+F+R5
 	mv ${outdir}/${ref_seg}-${name}.treefile ${outdir}/${ref_seg}-${name}.tre
 else
 	# Build all trees with FastTree in parallel.
